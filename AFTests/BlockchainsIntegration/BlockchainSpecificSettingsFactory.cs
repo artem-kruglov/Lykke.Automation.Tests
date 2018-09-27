@@ -342,7 +342,7 @@ namespace AFTests.BlockchainsIntegration
                 ExternalWalletKey = "cNXQfnthkJfBzzntW4Hq2EL4E43GRXjjqx66Eh5JKRcUY999KEC9";
                 ExternalWallerAddressContext = "";
                 AssetId = "QTUM";
-                BlockchainMiningTime = 10;
+                BlockchainMiningTime = 5;
             }
         }
 
