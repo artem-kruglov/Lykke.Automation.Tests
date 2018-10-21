@@ -343,7 +343,7 @@ namespace AFTests.BlockchainsIntegration
                 ExternalWallerAddressContext = "";
                 AssetId = "QTUM";
                 BlockchainMiningTime = 10;
-                BuildSignBroadcastEWDW = 21;
+                BuildSignBroadcastEWDW = 31;
             }
         }
 
