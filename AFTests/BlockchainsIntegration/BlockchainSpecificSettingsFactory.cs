@@ -81,6 +81,15 @@ namespace AFTests.BlockchainsIntegration
             if (blockchain == "bitcoin")
                 _settings = new BitcoinSettings();
 
+            if (blockchain == "qtum")
+                _settings = new QtumSettings();
+
+            if (blockchain == "steem")
+                _settings = new SteemSettings();
+            
+            if (blockchain == "ethereum")
+                _settings = new EthereumSettings();
+
             TestContext.Progress.WriteLine($"propeties.json: {JsonConvert.SerializeObject(_settings)}");
 
             return _settings;
@@ -322,6 +331,59 @@ namespace AFTests.BlockchainsIntegration
             }
         }
 
+        class QtumSettings : BlockchainSpecificModel
+        {
+            public QtumSettings()
+            {
+                BlockchainIntegration = "QTUM";
+                BlockchainApi = "http://qtum-api.autotests-service.svc.cluster.local/api";
+                BlockchainSign = "http://qtum-sign.autotests-service.svc.cluster.local/api";
+                HotWallet = "qg3uFoqA5nFFvx4N6avNUaRw6ppdRpXfwg";
+                HotWalletKey = "cUfNTJiPcsCbj4RdxLWE1vnBBn8k5fwem14JBSBnSWoAzKhTzGVa";
+                HotWalletAddressContext = "";
+                ExternalWalletAddress = "qL6XDDTKmoPYeK6QLq83tosygptN85Sehd";
+                ExternalWalletKey = "cNXQfnthkJfBzzntW4Hq2EL4E43GRXjjqx66Eh5JKRcUY999KEC9";
+                ExternalWallerAddressContext = "";
+                AssetId = "QTUM";
+                BlockchainMiningTime = 10;
+                BuildSignBroadcastEWDW = 21;
+            }
+        }
+
+        class SteemSettings : BlockchainSpecificModel
+        {
+            public SteemSettings()
+            {
+                BlockchainIntegration = "Steem";
+                BlockchainApi = "http://steem-api.autotests-service.svc.cluster.local/api";
+                BlockchainSign = "http://steem-signservice.autotests-service.svc.cluster.local/api";
+                AssetId = "STEEM";
+                AssetAccuracy = 3;
+                HotWallet = "lykke.dev.test01";
+                HotWalletKey = "5JavWA9FhGqijcWbKmjxoFDkMTSNteSQRcqHhtMCiRMjp7pQ7f2";
+                ExternalWalletAddress = "lykke.dev.test02";
+                ExternalWalletKey = "5HrwjF51dAbAPJNUy6oFqnjKmcJWVkFpqyJMocBycbn4Sd5Eiai";
+                BlockchainMiningTime = 10;
+            }
+        }
+
+        class EthereumSettings : BlockchainSpecificModel
+        {
+            public EthereumSettings()
+            {
+                BlockchainIntegration = "Ethereum";
+                BlockchainApi = "http://ethereum-api.autotests-service.svc.cluster.local/api";
+                BlockchainSign = "http://ethereum-signapi.autotests-service.svc.cluster.local/api";
+                BlockchainMiningTime = 5;
+                HotWallet = "0xec31eafd3818fbd7c14a423ee09090351d864ba1";
+                HotWalletKey = "0x2df14f93b65c7fbe6623aef1f09183d704f7f24ad2d615eaecc9fd44f725b269";
+                AssetId = "ETH";
+                ExternalWalletAddress = "0x085e36cc33743be10246013d11b8fc1919a242db";
+                ExternalWalletKey = "0x2c0b8b8f59e2ed253bb45c0974852cae982416823eb4f6775192f167e7b15825";
+                BuildSignBroadcastEWDW = 1;
+            }
+        }
+
         public class LocalConfig : BlockchainSpecificModel
         {
             public static BlockchainSpecificModel LocalConfigModel()
@@ -348,5 +410,8 @@ namespace AFTests.BlockchainsIntegration
         public long? BlockchainMiningTime { get; set; }
         public long? MaxWalletsForCashIn { get; set; }
         public long? SignExpiration { get; set; }
+        public long? BuildSignBroadcastAttemptCount { get; set; }
+        public long? RebuildAttemptCount { get; set; }
+        public long? BuildSignBroadcastEWDW { get; set; }
     }
 }

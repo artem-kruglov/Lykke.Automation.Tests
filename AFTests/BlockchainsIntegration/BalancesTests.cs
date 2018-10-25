@@ -23,13 +23,14 @@ namespace AFTests.BlockchainsIntegrationTests
             {
                 wallet = Wallets().Dequeue();
                 TestContext.Out.WriteLine($"wallet {wallet.PublicAddress} balance: {blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.FirstOrDefault(w => w.Address == wallet.PublicAddress)?.Balance}");
-                Assert.That(blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.FirstOrDefault(w => w.Address == wallet.PublicAddress)?.Balance, Is.Not.Null.Or.Empty.And.Not.EqualTo("0"), "Unxpected balance");
+                Assert.That(blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.FirstOrDefault(w => w.Address == wallet.PublicAddress)?.Balance, Is.Not.Null.Or.Empty.And.Not.EqualTo("0"), $"Unxpected balance for wallet {wallet.PublicAddress}");
             }
 
             [TearDown]
             public void TearDown()
             {
-                blockchainApi.Balances.DeleteBalances(wallet.PublicAddress);
+                TransferCryptoBetweenWallets(wallet, HOT_WALLET);
+                blockchainApi.Balances.DeleteBalances(GetWalletCorrectName(wallet?.PublicAddress));
             }
 
             [Test]
@@ -66,10 +67,14 @@ namespace AFTests.BlockchainsIntegrationTests
 
         public class GetBalancesContinuation : BlockchainsIntegrationBaseTest
         {
-           // [Test]
+            //[Test]
             [Category("BlockchainIntegration")]
             public void GetBalancesContinuationTest()
             {
+                EnableBLockchainProxy();
+
+                var blockchainApi = new BlockchainApi(proxyApi);
+
                 var take = "1";
                 var continuation = TestData.GenerateString();
                 var response = blockchainApi.Balances.GetBalances(take, continuation);
@@ -138,7 +143,8 @@ namespace AFTests.BlockchainsIntegrationTests
             [TearDown]
             public void TearDown()
             {
-                blockchainApi.Balances.DeleteBalances(wallet.PublicAddress);
+                TransferCryptoBetweenWallets(wallet, HOT_WALLET);
+                blockchainApi.Balances.DeleteBalances(GetWalletCorrectName(wallet?.PublicAddress));
             }
 
             [Test]
@@ -158,7 +164,7 @@ namespace AFTests.BlockchainsIntegrationTests
                 {
                     var model = new BuildSingleTransactionRequest()
                     {
-                        Amount = AMOUT_WITH_FEE,
+                        Amount = AMOUNT,
                         AssetId = ASSET_ID,
                         FromAddress = wallet.PublicAddress,
                         IncludeFee = true,
@@ -208,7 +214,7 @@ namespace AFTests.BlockchainsIntegrationTests
 
                             if (balances.Items.ToList().Any(a => a.Address == wallet.PublicAddress))
                             {
-                                Assert.That(balances.Items.ToList().Find(w => w.Address == wallet.PublicAddress).Block, Is.LessThan(transactionBlock), "Transaction block is not greater than balance block");
+                                Assert.That(balances.Items.ToList().Find(w => w.Address == wallet.PublicAddress).Block, Is.GreaterThanOrEqualTo(transactionBlock), "Transaction block is not less or equal than latest balance block");
                             }
                             else
                             {
@@ -216,16 +222,13 @@ namespace AFTests.BlockchainsIntegrationTests
                             }
                         }
                         sw.Stop();
-
-                        Assert.That(() => blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.ToList().Any(a => a.Address == wallet.PublicAddress),
-                            Is.False, $"Wallet is present in Get Balances after {BLOCKCHAIN_MINING_TIME} minutes");
                     }
                 });
 
                 Step("Validate balance records for wallet in GET /balances response. Validate wallet balance", () => 
                 {
                     Assert.That(() => blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.ToList().Count(a => a.Address == wallet.PublicAddress), Is.EqualTo(1), $"Unexpected instances of balance for wallet {wallet.PublicAddress}");
-                    Assert.That(() => blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.ToList().Find(a => a.Address == wallet.PublicAddress).Balance, Is.EqualTo(AMOUT_WITH_FEE), "Balance is not expected");
+                    Assert.That(() => blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.ToList().Find(a => a.Address == wallet.PublicAddress).Balance, Is.EqualTo((decimal.Parse(AMOUT_WITH_FEE) - decimal.Parse(AMOUNT)).ToString()), "Balance is not expected");
                 });
             }
 
@@ -260,76 +263,14 @@ namespace AFTests.BlockchainsIntegrationTests
             {
                 wallet = Wallets().Dequeue();
                 TestContext.Out.WriteLine($"wallet {wallet.PublicAddress} balance: {blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.FirstOrDefault(w => w.Address == wallet.PublicAddress)?.Balance}");
-                Assert.That(blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.FirstOrDefault(w => w.Address == wallet.PublicAddress)?.Balance, Is.Not.Null.Or.Empty.And.Not.EqualTo("0"), "Unxpected balance");
+                Assert.That(blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.FirstOrDefault(w => w.Address == wallet.PublicAddress)?.Balance, Is.Not.Null.Or.Empty.And.Not.EqualTo("0"), $"Unxpected balance for wallet {wallet.PublicAddress}");
             }
 
             [TearDown]
             public void TearDown()
             {
-                blockchainApi.Balances.DeleteBalances(wallet.PublicAddress);
-            }
-
-        //    [Test]
-            [Category("BlockchainIntegration")]
-            [Description("This case validate case when DW got transaction from EW immidiatly after DW-HW transaction and show correct block number after transaction got completed")]
-            public void DWHWandEwDwTransactionsFinalBlockNumberTest()
-            {
-                //create transaction and broadcast it
-
-                long? newBlock = null;
-
-                var startBalance = blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.ToList().Find(a => a.Address == wallet.PublicAddress).Balance;
-                var startBlock = blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.ToList().Find(a => a.Address == wallet.PublicAddress).Block;
-
-                var model = new BuildSingleTransactionRequest()
-                {
-                    Amount = AMOUT_WITH_FEE,
-                    AssetId = ASSET_ID,
-                    FromAddress = wallet.PublicAddress,
-                    IncludeFee = true,
-                    OperationId = Guid.NewGuid(),
-                    ToAddress = HOT_WALLET,
-                    FromAddressContext = wallet.AddressContext
-                };
-
-                var responseTransaction = blockchainApi.Operations.PostTransactions(model).GetResponseObject();
-                string operationId = model.OperationId.ToString();
-
-                var signResponse = blockchainSign.PostSign(
-                    new SignRequest() {
-                        PrivateKeys = new List<string>()
-                        { wallet.PrivateKey },
-                        TransactionContext = 
-                        responseTransaction.TransactionContext }).GetResponseObject();
-
-                var response = blockchainApi.Operations.PostTransactionsBroadcast(new BroadcastTransactionRequest() { OperationId = model.OperationId, SignedTransaction = signResponse.SignedTransaction });
-
-                GetTransactionCompleteStatusTime(operationId, wallet.PublicAddress);
-                WaitForBalanceBlockIncreased(wallet.PublicAddress, startBlock);
-                
-                newBlock = blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.ToList().Find(a => a.Address == wallet.PublicAddress)?.Block;
-                
-                if (newBlock == null)
-                {
-                    var completeBlock = blockchainApi.Operations.GetOperationId(model.OperationId.ToString()).GetResponseObject();
-                    Assert.That(completeBlock.Block, Is.GreaterThan(startBlock), "Block when operation got complete status is not greater than block with start balance");
-                    Assert.Pass("Transaction got Complete status and wallet dissapear from GET /balances request");
-                }
-                else
-                {
-                    Assert.That(() => blockchainApi.Operations.GetOperationId(operationId).GetResponseObject().State, Is.EqualTo(BroadcastedTransactionState.Completed), $"Request doesnt have Complete status after {BLOCKCHAIN_MINING_TIME} minutes and still in a {blockchainApi.Operations.GetOperationId(operationId).GetResponseObject().State}");
-
-                    var transactionBlock = blockchainApi.Operations.GetOperationId(operationId).GetResponseObject().Block;
-
-                    TestContext.Progress.WriteLine($"old block: {startBlock} \n new block: {newBlock}");
-
-                    Assert.That(newBlock.Value, Is.GreaterThan(startBlock), $"New balance block is not greater than previous");
-
-                    Assert.That(() => blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.ToList().Find(w => w.Address == wallet.PublicAddress).Block, Is.GreaterThanOrEqualTo(transactionBlock).After((int)BLOCKCHAIN_MINING_TIME * 60).Seconds.PollEvery(1).Seconds, "Transaction block is not greater than balance block");
-                }
-
-                Assert.That(() => blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.ToList().Count(a => a.Address == wallet.PublicAddress), Is.EqualTo(1), $"Unexpected instances of balance for wallet {wallet.PublicAddress}");
-                Assert.That(() => blockchainApi.Balances.GetBalances("500", null).GetResponseObject().Items.ToList().Find(a => a.Address == wallet.PublicAddress).Balance, Is.EqualTo(AMOUT_WITH_FEE), "Balance is not expected");           
+                TransferCryptoBetweenWallets(wallet, HOT_WALLET);
+                blockchainApi.Balances.DeleteBalances(GetWalletCorrectName(wallet?.PublicAddress));
             }
 
             long? GetTransactionCompleteStatusTime(string operationId, string wallet)
